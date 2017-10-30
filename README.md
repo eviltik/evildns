@@ -101,3 +101,9 @@ Coming next
     * provide realtime results (sockmq => websocket => GUI)
 
 
+Resources
+---------
+* https://udger.com
+* https://en.wikipedia.org/wiki/List_of_assigned_/8_IPv4_address_blocks
+* https://udger.com/resources/ua-list
+
