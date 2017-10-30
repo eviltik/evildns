@@ -158,6 +158,7 @@ function forkMeIAmFamous(cidr, nextFork) {
 function onReverseFound(ev, data) {
 
     let dh;
+    let dhh;
     let dir;
 
     data.hostnames.forEach(function(h) {
@@ -166,8 +167,18 @@ function onReverseFound(ev, data) {
         // write normal reverse found in the tree
         ///////////////////////////////////////////
 
-        dh = h.split('.').reverse();
+        // 115.15.102.66.bc.googleusercontent.com must create a tree
+        // com/googleusercontent/bc and not com/googleusercontent/bc/66/102/15/115
+        dhh = h.replace(/([0-9]+)\.([0-9]+)/g,'$1=$2');
+        dhh = dhh.replace(/([0-9]+)\.([0-9]+)/g,'$1=$2');
+        dh = dhh.split('.').reverse();
+        dh.forEach((p,i)=>{
+            dh[i] = p.replace(/=/,'.');
+        });
+
+        // remove first subdomain part
         dh.pop();
+
         dir = dataDir + dh.join('/');
         fs.ensureDirSync(dir);
 
