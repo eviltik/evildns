@@ -41,10 +41,6 @@ let filteredDomains = {
     }
 };
 
-function fileSize(filename) {
-    return pretty(fs.statSync(filename)["size"]);
-}
-
 function initProgram() {
     program
         .arguments('<cidrFile>')
