@@ -1,10 +1,10 @@
 {
   "name": "evildns",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Massive DNS Reverse Lookup Tool",
   "main": "index.js",
   "bin": {
-    "evildns": "evildns.js"
+    "evildns": "./bin/evildns.js"
   },
   "dependencies": {
     "cli-progress": "1.6.0",
