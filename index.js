@@ -4,6 +4,7 @@ const sockmq = require('sockmq');
 const sockmqProtocol = 'tcp';// ipc or tcp
 const sockmqVerbose = false;
 
+
 process.sockmq = sockmq;
 
 if (cluster.isMaster) {
@@ -32,4 +33,3 @@ if (cluster.isMaster) {
     });
 
 }
-
