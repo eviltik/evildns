@@ -62,17 +62,20 @@ function resolveExec(ipDec, callback) {
     current = ipDec;
     currentIP = ipInt(ipDec).toIP();
 
+    // because of queue/event loop, currentIP can change
+    let tmpCurrentIP = ipInt(ipDec).toIP();
+
     try {
-        dns.reverse(currentIP, (err, hostnames) => {
+        dns.reverse(tmpCurrentIP, (err, hostnames) => {
 
             if (err) {
-                return onResolve(callback, err, current, currentIP);
+                return onResolve(callback, err, ipDec, tmpCurrentIP);
             }
 
-            return onResolve(callback, null, current, currentIP, hostnames);
+            return onResolve(callback, null, ipDec, tmpCurrentIP, hostnames);
         });
     } catch (err) {
-        return onResolve(callback, err, current, currentIP);
+        return onResolve(callback, err, ipDec, tmpCurrentIP);
     }
 
 }
