@@ -267,20 +267,20 @@ function showStats() {
                 .format("hh:mm:ss", {trim: false});
 
         progressPercent = Math.floor((totalDone * 100) / totalIPCount);
+
+
+        verbose && console.log(
+            "%s% done since %s, remaining %s (%s reverse per sec)",
+            progressPercent,
+            elapsedTime,
+            remainingTime,
+            reversePerSec
+        );
+
+        !verbose && bar && bar.update(totalDone, {
+            remaining: remainingTime || 'N/A'
+        });
     }
-
-    verbose && console.log(
-        "%s% done since %s, remaining %s (%s reverse per sec)",
-        progressPercent,
-        elapsedTime,
-        remainingTime,
-        reversePerSec
-    );
-
-    !verbose && bar && bar.update(totalDone, {
-        remaining:remainingTime||'N/A'
-    });
-
 }
 
 function initEvents() {
