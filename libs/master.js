@@ -106,8 +106,16 @@ function initCache() {
     });
 
     verbose && console.log('Number of IPs to reverse: %s', totalIPCount);
-    bar = new ProgressBar.Bar({});
+
+    bar = new ProgressBar.Bar({
+        format: '[{bar}] {percentage}% | ETA: {remaining} | {value}/{total}'
+    });
+
     bar.start(totalIPCount);
+
+    bar.update(0,{
+        remaining:'N/A'
+    });
 }
 
 function forkMeIAmFamous(cidr, nextFork) {
@@ -234,6 +242,9 @@ function onReverseFound(ev, data) {
 
 function showStats() {
     let reversePerSec = 0;
+    let elapsedTime = 'N/A';
+    let remainingTime = 'N/A';
+    let progressPercent = 'N/A';
 
     Object.keys(workers).forEach((k) => {
         if (workers[k].stats) {
@@ -241,15 +252,19 @@ function showStats() {
         }
     });
 
-    let elapsedTime = moment
-        .duration(Date.now()-startTime, "ms")
-        .format("d[d] hh:mm:ss", { trim: false });
+    if (totalDone && reversePerSec) {
+        elapsedTime =
+            moment
+                .duration(Date.now() - startTime, "ms")
+                .format("d[d] hh:mm:ss", {trim: false});
 
-    let remainingTime = moment
-        .duration(Math.round((totalIPCount-totalDone)/reversePerSec), "seconds")
-        .format("d[d] hh:mm:ss", { trim: false });
+        remainingTime =
+            moment
+                .duration(Math.round((totalIPCount - totalDone) / reversePerSec), "seconds")
+                .format("hh:mm:ss", {trim: false});
 
-    let progressPercent = Math.floor((totalDone * 100) / totalIPCount);
+        progressPercent = Math.floor((totalDone * 100) / totalIPCount);
+    }
 
     verbose && console.log(
         "%s% done since %s, remaining %s (%s reverse per sec)",
@@ -259,7 +274,9 @@ function showStats() {
         reversePerSec
     );
 
-    bar && bar.update(totalDone);
+    bar && bar.update(totalDone, {
+        remaining:remainingTime||'N/A'
+    });
 
 }
 
