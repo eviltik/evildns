@@ -106,7 +106,7 @@ function initCache() {
     });
 
     verbose && console.log('Number of IPs to reverse: %s', totalIPCount);
-    bar = new ProgressBar.Bar({},ProgressBar.Presets.shades_classic);
+    bar = new ProgressBar.Bar({});
     bar.start(totalIPCount);
 }
 
