@@ -11,6 +11,7 @@ const common = require('./common');
 const async = require('async');
 const moment = require('moment');
 const ProgressBar = require('cli-progress');
+const cidrClean = require('cidr-clean');
 
 require('moment-duration-format');
 
@@ -60,6 +61,8 @@ function initProgram() {
         console.log('error: %s does not contain any CIDR range', cidrFile);
         process.exit();
     }
+
+    cidrList = cidrClean(cidrList);
 }
 
 function initCache() {
