@@ -124,13 +124,16 @@ function initCache() {
 function forkMeIAmFamous(cidr, nextFork) {
     let w;
 
-    verbose && console.log(
-        sprintf(
-            '%-20s: create worker',
-            cidr,
-            tmpCidrFile
-        )
-    );
+    if (verbose) {
+        let block = new Netmask(cidr);
+        console.log(
+            sprintf(
+                '%-20s: create worker (%s IPs to reverse)',
+                cidr,
+                block.size-2
+            )
+        );
+    }
 
     var tmpArgs = JSON.parse(JSON.stringify(process.argv));
     tmpArgs.shift();
@@ -151,8 +154,9 @@ function forkMeIAmFamous(cidr, nextFork) {
 
         verbose && console.log(
             sprintf(
-                '%-20s: job done',
-                this.cidr
+                '%-20s: job done (%s IPs reversed)',
+                this.cidr,
+                this.done
             )
         );
 
