@@ -264,16 +264,18 @@ function showStats() {
 
     }
 
-    process.stdout.write(
-        sprintf(
-            "%s%% done since %s, remaining %s (%s reverse per sec)"+
-            "               \r",
-            progressPercent,
-            elapsedTime,
-            remainingTime,
-            reversePerSec
-        )
-    );
+    if (!program.quiet) {
+        process.stdout.write(
+            sprintf(
+                "%s%% done since %s, remaining %s (%s reverse per sec)"+
+                "               \r",
+                progressPercent,
+                elapsedTime,
+                remainingTime,
+                reversePerSec
+            )
+        );
+    }
 
 }
 
