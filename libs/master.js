@@ -49,6 +49,8 @@ function initProgram() {
             cidrFile = f;
         })
         .option('-r, --rebuild-cache', 'Rebuild local cache')
+        .option('-v, --verbose', 'Verbose')
+        .option('-q, --quiet','Quiet')
         .parse(process.argv);
 
     if (!cidrFile) {
@@ -61,6 +63,8 @@ function initProgram() {
         console.log('error: %s does not contain any CIDR range', cidrFile);
         process.exit();
     }
+
+    verbose = program.verbose;
 
     cidrList = cidrClean(cidrList);
 }
@@ -109,13 +113,12 @@ function initCache() {
 
     bar = new ProgressBar.Bar({
         format: '[{bar}] {percentage}% | ETA: {remaining} | {value}/{total}'
-    });
+    },ProgressBar.Presets.rect);
 
-    bar.start(totalIPCount);
-
-    bar.update(0,{
-        remaining:'N/A'
-    });
+    if (!verbose && !program.quiet) {
+        bar.start(totalIPCount);
+        bar.update(0, {remaining: 'N/A'});
+    }
 }
 
 function forkMeIAmFamous(cidr, nextFork) {
@@ -191,7 +194,7 @@ function onReverseFound(ev, data) {
 
         verbose && console.log(
             sprintf(
-                '\n%-20s: found %s => %s',
+                '%-20s: found %s => %s',
                 data._emitter,
                 data.ip,
                 h
@@ -216,7 +219,7 @@ function onReverseFound(ev, data) {
 
                     verbose && console.log(
                         sprintf(
-                            '\n%-20s: found %s => %s/%s',
+                            '%-20s: found %s => %s/%s',
                             data._emitter,
                             data.ip,
                             h,
@@ -256,7 +259,7 @@ function showStats() {
         elapsedTime =
             moment
                 .duration(Date.now() - startTime, "ms")
-                .format("d[d] hh:mm:ss", {trim: false});
+                .format("hh:mm:ss", {trim: false});
 
         remainingTime =
             moment
@@ -274,7 +277,7 @@ function showStats() {
         reversePerSec
     );
 
-    bar && bar.update(totalDone, {
+    !verbose && bar && bar.update(totalDone, {
         remaining:remainingTime||'N/A'
     });
 

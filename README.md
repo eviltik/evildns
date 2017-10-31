@@ -40,9 +40,8 @@ $ npm install -g evildns
 Usage
 -----
 ```
-$ evildns -r allocations/microsoft/cidr.txt
- [=--------------------------------] 0% | ETA: 9567s | 11045/21059548
-
+$ evildns.js allocations/google/cidr.txt
+[■               ] 3% | ETA: 00:12:39 | 23274/680200
 ```
 
 Tree created, example 1:
