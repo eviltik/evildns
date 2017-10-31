@@ -31,6 +31,11 @@ This tool can be brought to send more than 3000 DNS Queries per second.
 You can be blacklisted if the DNS Server is rate limited. Take care.
 
 
+Installation
+------------
+```
+$ npm install -g evildns
+```
 
 Usage
 -----
