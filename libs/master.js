@@ -10,7 +10,6 @@ const extend = require('util')._extend;
 const common = require('./common');
 const async = require('async');
 const moment = require('moment');
-const ProgressBar = require('cli-progress');
 const cidrClean = require('cidr-clean');
 
 require('moment-duration-format');
@@ -35,7 +34,6 @@ let startTime = Date.now();
 let dataDir = "tree/";
 let showWorkersStatsInterval = 1*1000;
 let workersQueue;
-let bar;
 let filteredDomains = {
     "_crawlers": {
         fqdnKeywords:["crawl","bot"]
@@ -111,14 +109,6 @@ function initCache() {
 
     verbose && console.log('Number of IPs to reverse: %s', totalIPCount);
 
-    bar = new ProgressBar.Bar({
-        format: '[{bar}] {percentage}% | ETA: {remaining} | {value}/{total}'
-    },ProgressBar.Presets.rect);
-
-    if (!verbose && !program.quiet) {
-        bar.start(totalIPCount);
-        bar.update(0, {remaining: 'N/A'});
-    }
 }
 
 function forkMeIAmFamous(cidr, nextFork) {
@@ -251,7 +241,7 @@ function showStats() {
     let reversePerSec = 0;
     let elapsedTime = 'N/A';
     let remainingTime = 'N/A';
-    let progressPercent = 'N/A';
+    let progressPercent = 0;
 
     Object.keys(workers).forEach((k) => {
         if (workers[k].stats) {
@@ -259,7 +249,7 @@ function showStats() {
         }
     });
 
-    if (totalDone && reversePerSec) {
+    if (reversePerSec) {
         elapsedTime =
             moment
                 .duration(Date.now() - startTime, "ms")
@@ -272,19 +262,19 @@ function showStats() {
 
         progressPercent = Math.floor((totalDone * 100) / totalIPCount);
 
+    }
 
-        verbose && console.log(
-            "%s% done since %s, remaining %s (%s reverse per sec)",
+    process.stdout.write(
+        sprintf(
+            "%s%% done since %s, remaining %s (%s reverse per sec)"+
+            "               \r",
             progressPercent,
             elapsedTime,
             remainingTime,
             reversePerSec
-        );
+        )
+    );
 
-        !verbose && bar && bar.update(totalDone, {
-            remaining: remainingTime || 'N/A'
-        });
-    }
 }
 
 function initEvents() {

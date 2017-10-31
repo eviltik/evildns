@@ -1,6 +1,6 @@
 {
   "name": "evildns",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Massive DNS Reverse Lookup Tool",
   "main": "index.js",
   "bin": {
@@ -9,7 +9,6 @@
   "dependencies": {
     "async": "2.5.0",
     "cidr-clean": "^1.1.0",
-    "cli-progress": "1.6.0",
     "commander": "2.11.0",
     "fs-extra": "4.0.2",
     "ip-to-int": "0.3.1",
