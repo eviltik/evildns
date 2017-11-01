@@ -77,19 +77,63 @@ data.csv content:
 ```
 
 
+Progress indicator
+------------------
+
+When using "-p" option, we can see what is going on
+```
+--------------------------------------------------------------------------------
+209.185.108.128/25   [=================] 99% 125/126           49/s | 209.185.108.254
+66.249.64.0/19       [                 ]  0%
+72.14.192.0/18       [                 ]  0%
+208.46.199.160/29    [                 ]  0% 0/6                0/s | 208.46.199.166
+209.85.128.0/17      [                 ]  0%
+216.239.32.0/19      [                 ]  0% 57/8190           37/s | 216.239.35.233
+64.68.80.0/21        [=                ]  3% 75/2046           38/s | 64.68.83.233
+66.102.0.0/20        [                 ]  0% 2/4094             2/s | 66.102.3.233
+64.233.160.0/19      [                 ]  0% 43/8190           43/s | 64.233.163.233
+108.177.0.0/17       [                 ]  0% 8/32766            8/s | 108.177.3.233
+--------------------------------------------------------------------------------
+oi-in-f17.1e100.net
+oi-in-f18.1e100.net
+any-in-2025.1e100.net
+oi-in-f19.1e100.net
+any-in-2026.1e100.net
+any-in-2027.1e100.net
+oi-in-f23.1e100.net
+any-in-2028.1e100.net
+any-in-2029.1e100.net
+oi-in-f26.1e100.net
+any-in-202b.1e100.net
+oi-in-f27.1e100.net
+any-in-202c.1e100.net
+any-in-202d.1e100.net
+oi-in-f28.1e100.net
+oi-in-f31.1e100.net
+any-in-2033.1e100.net
+any-in-2035.1e100.net
+any-in-2036.1e100.net
+oi-in-f114.1e100.net
+--------------------------------------------------------------------------------
+0% done since 00:00:03, remaining 01:02:36 (181 reverse per sec) (328/680200)
+```
 
 Help
 -----
 ```
 $ evildns ---help
 
-  Usage: evildns [options] <cidrFile>
+    Usage: evildns [options] <cidrFile>
 
 
-  Options:
+    Options:
 
-    -r, --rebuild-cache  Rebuild local cache
-    -h, --help           output usage information
+      -r, --rebuild-cache  Rebuild local cache
+      -p, --progress       Show progress
+      -v, --verbose        Verbose
+      -q, --quiet          Quiet
+      -h, --help           output usage information
+
 ```
 
 

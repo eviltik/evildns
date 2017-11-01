@@ -1,3 +1,0 @@
-```
-ripe-extract --cidr google
-```

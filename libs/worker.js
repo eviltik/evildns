@@ -16,12 +16,11 @@ let last;
 let current;
 let currentIP;
 let status;
-let maxParallel = 300;
+let maxParallel = 1000;
 let saturated = false;
 let loopLast;
 let loopFirst;
 let loopI;
-let stats;
 
 let countDone = 0;
 let countIp = 0;
@@ -114,7 +113,7 @@ function onResolve(next, err, ipDec, ip, hostnames) {
     countDone++;
 
     if (hostnames) {
-        sockmq.send('master:reverseFound', {
+        sockmq.send('master:workerReverseFound', {
             ipDec: ipDec,
             ip: ip,
             hostnames: hostnames
@@ -157,7 +156,8 @@ function updateStatus() {
 
     let stats = {
         done:countDone,
-        progress:Math.floor((countDone * 100) / countIp),
+        total:countIp,
+        progress:(Math.floor((countDone * 100) / countIp))||0,
         reversePerSec:reversePerSec,
         notFound:countNotfound,
         currentIP:currentIP,
@@ -179,18 +179,19 @@ function updateStatus() {
     lastCountDone = countDone;
     lastCountRequeued = countRequeued;
 
-    sockmq.send('master:progress', {latest:current});
+    sockmq.send('master:workerProgress', {latest:current});
 
     if (countDone === countIp) {
         stats.finished = true;
-        sockmq.send('master:stats', stats);
+        sockmq.send('master:workerStats', stats);
         sockmq.disconnect(function () {
+            // let master refresh stats :)
             setTimeout(() => {
                 process.exit(0);
-            },100);
+            },1100);
         });
     } else {
-        sockmq.send('master:stats', stats);
+        sockmq.send('master:workerStats', stats);
     }
 
 }
@@ -217,7 +218,7 @@ function init() {
         setInterval(updateStatus, updateMasterInterval);
     });
 
-    sockmq.send("master:ready");
+    sockmq.send("master:workerReady");
 
     setInterval(forceGC, 30 * 1000);
 }
