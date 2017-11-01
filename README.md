@@ -40,11 +40,11 @@ $ npm install -g evildns
 Usage
 -----
 ```
-$ evildns.js allocations/google/cidr.txt
+$ evildns myCidrList.txt
 [■               ] 3% | ETA: 00:12:39 | 23274/680200
 ```
 
-Tree created, example 1:
+Result provide a tree, example 1:
 ```
 * top level domain
     * maindomain
