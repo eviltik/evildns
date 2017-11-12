@@ -1,6 +1,6 @@
 {
   "name": "evildns",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Massive DNS Reverse Lookup Tool",
   "main": "index.js",
   "bin": {
