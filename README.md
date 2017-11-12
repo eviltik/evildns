@@ -1,4 +1,6 @@
 # evildns
+---------
+[![Dependencies](https://david-dm.org/eviltik/evildns.svg)](https://david-dm.org/eviltik/evildns)
 
 A (massive) DNS Reverse Lookup Tool
 -----------------------------------
@@ -154,4 +156,7 @@ Resources
 * https://udger.com
 * https://en.wikipedia.org/wiki/List_of_assigned_/8_IPv4_address_blocks
 * https://udger.com/resources/ua-list
+* http://viewdns.info/
+* http://exfiltrated.com/querystart.php
+* https://robtex.com/
 
