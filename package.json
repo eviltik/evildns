@@ -9,7 +9,7 @@
   "dependencies": {
     "async": "2.6.0",
     "chalk": "2.3.0",
-    "cidr-clean": "^1.1.0",
+    "cidr-clean": "1.1.0",
     "commander": "2.11.0",
     "draftlog": "1.0.12",
     "fs-extra": "4.0.2",
