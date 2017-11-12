@@ -1,5 +1,4 @@
 # evildns
----------
 [![Dependencies](https://david-dm.org/eviltik/evildns.svg)](https://david-dm.org/eviltik/evildns)
 
 A (massive) DNS Reverse Lookup Tool
