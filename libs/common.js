@@ -6,6 +6,6 @@ function getCidrFile(cidr) {
 }
 
 module.exports = {
-    getCidrFile:getCidrFile
+    getCidrFile
 };
 

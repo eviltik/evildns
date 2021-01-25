@@ -9,7 +9,7 @@ process.sockmq = sockmq;
 
 if (cluster.isMaster) {
 
-    sockmq.startServer({transport: sockmqProtocol, verbose: sockmqVerbose}, function() {
+    sockmq.startServer({ transport: sockmqProtocol, verbose: sockmqVerbose }, () => {
         require('./libs/master')();
     });
 
@@ -28,11 +28,8 @@ if (cluster.isMaster) {
         transport:sockmqProtocol,
         forkId:process.env.cidr,
         verbose:sockmqVerbose
-    }, function() {
+    }, () => {
         require('./libs/worker')();
     });
 
 }
-
-
-

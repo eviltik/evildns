@@ -1,6 +1,9 @@
 # evildns
+
+<!-- ![Node.js CI](https://github.com/eviltik/pinary/workflows/Node.js%20CI/badge.svg) -->
+[![npm version](https://badge.fury.io/js/evildns.svg)](https://badge.fury.io/js/evildns)
 [![MIT Licence](https://badges.frapsoft.com/os/mit/mit.svg?v=103)](https://opensource.org/licenses/mit-license.php)
-[![Dependencies](https://david-dm.org/eviltik/evildns.svg)](https://david-dm.org/eviltik/evildns)
+[![Dependency Status](https://david-dm.org/eviltik/evildns.svg)](https://david-dm.org/eviltik/evildns)
 
 A (massive) DNS Reverse Lookup Tool
 -----------------------------------
@@ -9,16 +12,15 @@ A (massive) DNS Reverse Lookup Tool
 
 Each CIDR lines found in a text file will create a "worker" for
 reverse lookup all IPs in given CIDR range. Workers will send
-result to the master proces each time an IP give a name, then, the
-master process will update the "tree" result. A maximum of 5 resolvers
+result to the master process each time an IP give his reverse lookup name,
+then, the master process will update the "tree" result. A maximum of 5 resolvers
 are working in parallel (atm).
 
 If you stop the process for many reasons and you start it again,
-it's supposed to pick up where it left off (use "-r" options to restart
-from crash)
+it's supposed to pick up where it left off (use "-r" options to reset cache).
 
-This tool does not required a database to store result (for moment). It
-use disk and will create a "tree/" directory.
+This tool does not required a database to store result. It use the filesystem to
+store results, create a "tree/" directory.
 
 **Motivations**
 
@@ -126,7 +128,6 @@ Help
 $ evildns ---help
 
     Usage: evildns [options] <cidrFile>
-
 
     Options:
 

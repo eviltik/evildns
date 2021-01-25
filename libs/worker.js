@@ -1,26 +1,28 @@
 require('sanic.js').changeMyWorld();
 const sprintf = require('sprintf');
-const common = require('./common');
-const Netmask = require('netmask').Netmask;
+//const common = require('./common');
 const ipInt = require('ip-to-int');
 const async = require('async');
 const dns = require('dns');
+const debug = require('debug')('evildns:worker');
 
 const sockmq = process.sockmq;
 
-let verbose = false;
-let tmpCidrFile;
-let cidr;
+const verbose = false;
+const maxParallel = 100;
+
+//let tmpCidrFile;
+//let cidr;
 let first;
 let last;
 let current;
 let currentIP;
 let status;
-let maxParallel = 1000;
 let saturated = false;
 let loopLast;
 let loopFirst;
 let loopI;
+let timerGc;
 
 let countDone = 0;
 let countIp = 0;
@@ -32,47 +34,54 @@ let countRequeued = 0;
 let lastCountRequeued = 0;
 
 let countNotfound = 0;
-let updateMasterInterval = 1000;
 
-let resolveExecWithTimeout = async.timeout(resolveExec, 3000);
-let q = async.queue(resolveExecWithTimeout, maxParallel);
+let timerUpdateStatus;
+const intervalUpdateStatus = 1000;
+const intervalGc = 30 * 1000;
 
-q.drain = onQueueDrain;
-q.unsaturated = onQueueUnsaturated;
-q.saturated = onQueueSaturated;
+const resolveExecWithTimeout = async.timeout(resolveExec, 3000);
+
+const q = async.queue(resolveExecWithTimeout, maxParallel);
+q.drain(onQueueDrain);
+q.unsaturated(onQueueUnsaturated);
+q.saturated(onQueueSaturated);
 
 function onQueueDrain() {
     // queue is empty, all ip have been reversed
+    debug('onQueueDrain');
 }
 
 function onQueueSaturated() {
-    //console.log('saturated');
     saturated = true;
+    debug('onQueueSaturated');
 }
 
 function onQueueUnsaturated() {
-    if (!saturated) return;
+    debug('onQueueUnsaturated');
+    if (!saturated) {
+        return;
+    }
     saturated = false;
     populateQueue();
 }
 
 function resolveExec(ipDec, callback) {
-
     current = ipDec;
     currentIP = ipInt(ipDec).toIP();
+    debug('resolveExec', currentIP);
 
     // because of queue/event loop, currentIP can change
-    let tmpCurrentIP = ipInt(ipDec).toIP();
+    const tmpCurrentIP = ipInt(ipDec).toIP();
 
     try {
-        dns.reverse(tmpCurrentIP, (err, hostnames) => {
-
-            if (err) {
-                return onResolve(callback, err, ipDec, tmpCurrentIP);
-            }
-
-            return onResolve(callback, null, ipDec, tmpCurrentIP, hostnames);
-        });
+        setTimeout(() => {
+            dns.reverse(tmpCurrentIP, (err, hostnames) => {
+                if (err) {
+                    return onResolve(callback, err, ipDec, tmpCurrentIP);
+                }
+                return onResolve(callback, null, ipDec, tmpCurrentIP, hostnames);
+            });
+        }, 200);
     } catch (err) {
         return onResolve(callback, err, ipDec, tmpCurrentIP);
     }
@@ -80,11 +89,14 @@ function resolveExec(ipDec, callback) {
 }
 
 function onResolve(next, err, ipDec, ip, hostnames) {
+    if (err) {
+        debug(err);
+    } else {
+        debug('onResolve', ip, hostnames);
+    }
 
     if (err) {
-
         if (err.message) {
-
             if (err.message.match(/ENOTFOUND/)) {
                 countNotfound++;
                 countDone++;
@@ -97,26 +109,20 @@ function onResolve(next, err, ipDec, ip, hostnames) {
                 return next();
             }
 
-            // unhandle exception ??
-            throw new Error(err.message);
-            process.exit(1);
+            console.log(err);
         }
 
         // unhandle exception ??
-        throw new Error(err);
-        process.exit(1);
-
-        //countDone++;
-        //return next();
+        throw Error(err);
     }
 
     countDone++;
 
     if (hostnames) {
         sockmq.send('master:workerReverseFound', {
-            ipDec: ipDec,
-            ip: ip,
-            hostnames: hostnames
+            ipDec,
+            ip,
+            hostnames
         });
     }
 
@@ -124,6 +130,8 @@ function onResolve(next, err, ipDec, ip, hostnames) {
 }
 
 function populateQueue() {
+
+    debug('populateQueue');
 
     if (!current) {
         loopFirst = first;
@@ -133,7 +141,9 @@ function populateQueue() {
         loopLast = loopFirst+(maxParallel-q.running());
     }
 
-    if (loopLast>last) loopLast = last;
+    if (loopLast>last) {
+        loopLast = last;
+    }
 
     for (loopI=loopFirst; loopI<=loopLast; loopI++) {
         q.push(loopI);
@@ -141,32 +151,32 @@ function populateQueue() {
 }
 
 function start() {
-
+    debug('start');
     first = status.first;
     last = status.last;
     current = status.current;
     countIp = status.size;
-
     populateQueue();
 }
 
 function updateStatus() {
-    reversePerSec = (countDone-lastCountDone)/(updateMasterInterval/1000);
+    debug('updateStatus');
+    reversePerSec = (countDone-lastCountDone)/(intervalUpdateStatus/1000);
     deltaRequeued = countRequeued-lastCountRequeued;
 
-    let stats = {
+    const stats = {
         done:countDone,
         total:countIp,
         progress:(Math.floor((countDone * 100) / countIp))||0,
-        reversePerSec:reversePerSec,
+        reversePerSec,
         notFound:countNotfound,
-        currentIP:currentIP,
-        current:current,
+        currentIP,
+        current,
         requeued:deltaRequeued
     };
 
     verbose && console.log(
-        "%s/%s %s%, notfound %s, current %s, requeued %s, avg %s reverse/s",
+        '%s/%s %s%, notfound %s, current %s, requeued %s, avg %s reverse/s',
         stats.done,
         countIp,
         stats.progress,
@@ -179,48 +189,57 @@ function updateStatus() {
     lastCountDone = countDone;
     lastCountRequeued = countRequeued;
 
-    sockmq.send('master:workerProgress', {latest:current});
+    sockmq.send('master:workerProgress', { latest:current });
 
     if (countDone === countIp) {
+        debug('done');
+
+        clearInterval(timerGc);
+        clearInterval(timerUpdateStatus);
+
         stats.finished = true;
         sockmq.send('master:workerStats', stats);
-        sockmq.disconnect(function () {
+        sockmq.disconnect(() => {
             // let master refresh stats :)
             setTimeout(() => {
                 process.exit(0);
-            },1100);
+            }, 2000);
         });
-    } else {
-        sockmq.send('master:workerStats', stats);
+        return;
     }
-
+    sockmq.send('master:workerStats', stats);
 }
 
 function forceGC() {
+    debug('forceGC');
     global.gc && global.gc();
 }
 
-function init() {
+function onSockmqStart(ev, data) {
+    debug('onSockmqStart', data);
+    status = data;
+    start();
+    timerUpdateStatus = setInterval(updateStatus, intervalUpdateStatus);
+}
 
-    cidr = process.env.cidr;
-    tmpCidrFile = common.getCidrFile(cidr);
+function init() {
+    const cidr = process.env.cidr;
+    debug('init', cidr);
+    //tmpCidrFile = common.getCidrFile(cidr);
 
     verbose && console.log(
         sprintf(
             '%-20s: starting reverse',
-            process.env.cidr
+            cidr
         )
     );
 
-    sockmq.on('start',function(ev,data) {
-        status = data;
-        start();
-        setInterval(updateStatus, updateMasterInterval);
-    });
+    sockmq.on('start', onSockmqStart);
+    sockmq.send('master:workerReady');
 
-    sockmq.send("master:workerReady");
-
-    setInterval(forceGC, 30 * 1000);
+    if (global.gc) {
+        timerGc = setInterval(forceGC, intervalGc);
+    }
 }
 
 module.exports = init;

@@ -1,7 +1,7 @@
 require('sanic.js').changeMyWorld();
+
 const fs = require('fs-extra');
 const program = require('commander');
-const pretty = require('prettysize');
 const sprintf = require('sprintf');
 const cluster = require('cluster');
 const Netmask = require('netmask').Netmask;
@@ -14,64 +14,69 @@ const moment = require('moment');
 const util = require('util');
 const chalk = require('chalk');
 const sockmq = process.sockmq;
+const debug = require('debug')('evildns:master');
 
 require('draftlog').into(console);
 require('moment-duration-format');
 
-let defaultOptions = {
+const defaultOptions = {
     workersMax:10
 };
 
-let filteredDomains = {
-    "_crawlers": {
-        fqdnKeywords:["crawl","bot"]
+const filteredDomains = {
+    'crawlers': {
+        fqdnKeywords:['crawl', 'bot']
     }
 };
 
+const workers = {};
+const cidrListClean = [];
+const progress = {};
+const startTime = Date.now();
+const dataDir = 'tree/';
+const showWorkersStatsInterval = 100;
+const workersStatLine = [];
+const fqdnFoundKeepMax = 20;
+const fqdnStatLines = [];
+const fqdnFound = [];
+const carretLength = 100;
+
+let opts = {};
 let verbose = false;
-let workers = {};
 let options = {};
 let cidrFile = '';
 let cidrList;
-let cidrListClean = [];
 let tmpCidrFile;
-let progress = {};
 let totalIPCount = 0;
 let totalDone = 0;
-let startTime = Date.now();
-let dataDir = "tree/";
-let showWorkersStatsInterval = 1*1000;
 let workersQueue;
-let workersStatLine = [];
 let masterStatLine;
-let fqdnFoundKeepMax = 20;
-let fqdnStatLines = [];
-let fqdnFound = [];
 
 let logger;
 
-let loggerConsole = {
-    log:function() {
-        verbose && console.log.apply(console,formatArgs(arguments))
+const loggerConsole = {
+    log() {
+        verbose && console.log.apply(console, formatArgs(arguments));
     },
-    warn:function() {
-        console.warn.apply(console,formatArgs(arguments))
+    warn() {
+        console.warn.apply(console, formatArgs(arguments));
     },
-    error:function() {
-        console.error.apply(console,formatArgs(arguments))
+    error() {
+        console.error.apply(console, formatArgs(arguments));
     }
 };
 
 function progressBar(progress) {
+    debug('progressBar', progress);
     // Make it 25 characters length
-    let divider = 6;
+    const divider = 6;
     progress = Math.min(100, progress);
-    let units = Math.round(progress / divider);
+    const units = Math.round(progress / divider);
     return '[' +
         '='.repeat(units) +
         ' '.repeat(Math.round(100/divider) - units) +
         '] ' +
-        chalk.yellow(sprintf('%2s%%',progress));
+        chalk.yellow(sprintf('%2s%%', progress));
 }
 
 function formatArgs(args){
@@ -79,7 +84,8 @@ function formatArgs(args){
 }
 
 function onWorkerForked(worker) {
-    if (!program.progress) return;
+    debug('onWorkerForked');
+    if (!opts.progress) return;
 
     let line, lineIndex;
 
@@ -93,7 +99,7 @@ function onWorkerForked(worker) {
     }
 
     line(
-        chalk.blue(sprintf("%-20s",worker.cidr)),
+        chalk.blue(sprintf('%-20s', worker.cidr)),
         progressBar(0)
     );
 
@@ -104,11 +110,13 @@ function onWorkerForked(worker) {
 
 function onReverseFound(ev, data) {
 
+    debug('onReverseFound', data);
+
     let dh;
     let dhh;
     let dir;
 
-    data.hostnames.forEach(function(h) {
+    data.hostnames.forEach((h) => {
 
         ///////////////////////////////////////////
         // write normal reverse found in the tree
@@ -116,11 +124,11 @@ function onReverseFound(ev, data) {
 
         // 115.15.102.66.bc.googleusercontent.com must create a tree
         // com/googleusercontent/bc and not com/googleusercontent/bc/66/102/15/115
-        dhh = h.replace(/([0-9]+)\.([0-9]+)/g,'$1=$2');
-        dhh = dhh.replace(/([0-9]+)\.([0-9]+)/g,'$1=$2');
+        dhh = h.replace(/([0-9]+)\.([0-9]+)/g, '$1=$2');
+        dhh = dhh.replace(/([0-9]+)\.([0-9]+)/g, '$1=$2');
         dh = dhh.split('.').reverse();
-        dh.forEach((p,i)=>{
-            dh[i] = p.replace(/=/,'.');
+        dh.forEach((p, i)=>{
+            dh[i] = p.replace(/=/, '.');
         });
 
         // remove first subdomain part
@@ -129,7 +137,7 @@ function onReverseFound(ev, data) {
         dir = dataDir + dh.join('/');
         fs.ensureDirSync(dir);
 
-        logger.log(
+        verbose && logger.log(
             sprintf(
                 '%-20s: found %s => %s',
                 data._emitter,
@@ -159,7 +167,7 @@ function onReverseFound(ev, data) {
             filteredDomains[prefix].re.forEach((re) => {
                 if (h.match(re)) {
 
-                    logger.log(
+                    verbose && logger.log(
                         sprintf(
                             '%-20s: found %s => %s/%s',
                             data._emitter,
@@ -181,7 +189,6 @@ function onReverseFound(ev, data) {
                 }
             });
         });
-
     });
 }
 
@@ -189,13 +196,13 @@ function showStatWorker(cidr) {
 
     if (!workers[cidr].stats) return;
 
-    if (program.progress) {
-        let stats = workers[cidr].stats;
-        let line = workersStatLine[workers[cidr].lineIndex];
-        if (stats.progress < 100) {
+    if (opts.progress) {
+        const stats = workers[cidr].stats;
+        const line = workersStatLine[workers[cidr].lineIndex];
+        if (stats.progress <= 100) {
             line.busy = true;
             line(
-                chalk.green(sprintf("%-20s", cidr)),
+                chalk.green(sprintf('%-20s', cidr)),
                 progressBar(stats.progress || 0),
                 sprintf('%-15s', stats.done + '/' + stats.total),
                 sprintf('%6s', stats.reversePerSec + '/s'),
@@ -210,6 +217,7 @@ function showStatWorker(cidr) {
 }
 
 function showStats() {
+    debug('showStats');
     let reversePerSec = 0;
     let elapsedTime = 'N/A';
     let remainingTime = 'N/A';
@@ -222,23 +230,23 @@ function showStats() {
     if (reversePerSec) {
         elapsedTime =
             moment
-                .duration(Date.now() - startTime, "ms")
-                .format("hh:mm:ss", {trim: false});
+                .duration(Date.now() - startTime, 'ms')
+                .format('hh:mm:ss', { trim: false });
 
         remainingTime =
             moment
-                .duration(Math.round((totalIPCount - totalDone) / reversePerSec), "seconds")
-                .format("hh:mm:ss", {trim: false});
+                .duration(Math.round((totalIPCount - totalDone) / reversePerSec), 'seconds')
+                .format('hh:mm:ss', { trim: false });
 
         progressPercent = Math.floor((totalDone * 100) / totalIPCount);
 
     }
 
-    if (!program.quiet) {
+    if (!opts.quiet) {
 
-        let str = sprintf(
-            "%s%% done since %s, remaining %s (%s reverse per sec) (%s/%s)" +
-            "               \r",
+        const str = sprintf(
+            '%s%% done since %s, remaining %s (%s reverse per sec) (%s/%s)' +
+            '               \r',
             progressPercent,
             elapsedTime,
             remainingTime,
@@ -247,8 +255,8 @@ function showStats() {
             totalIPCount
         );
 
-        if (program.progress) {
-            masterStatLine(chalk.blue(str))
+        if (opts.progress) {
+            masterStatLine(chalk.blue(str));
 
             fqdnFound.forEach((fqdn, i)=> {
                 fqdnStatLines[i](fqdn);
@@ -263,10 +271,10 @@ function showStats() {
 
 function workerFork(cidr, nextFork) {
 
-    let w;
+    debug('workerFork');
 
     if (verbose) {
-        let block = new Netmask(cidr);
+        const block = new Netmask(cidr);
         console.log(
             sprintf(
                 '%-20s: create worker (%s IPs to reverse)',
@@ -287,11 +295,11 @@ function workerFork(cidr, nextFork) {
         execArgv:['--expose_gc']
     };
 
-    w = cluster.fork({cidr:cidr});
+    const w = cluster.fork({ cidr });
     w.cidr = cidr;
     w.done = 0;
 
-    w.on('exit',function() {
+    w.on('exit', function() {
 
         verbose && console.log(
             sprintf(
@@ -311,89 +319,68 @@ function workerFork(cidr, nextFork) {
     onWorkerForked(w);
 }
 
-function initProgram() {
-    program
-        .arguments('<cidrFile>')
-        .action(function (f) {
-            cidrFile = f;
-        })
-        .option('-r, --rebuild-cache', 'Rebuild local cache')
-        .option('-p, --progress','Show progress')
-        .option('-v, --verbose', 'Verbose')
-        .option('-q, --quiet','Quiet')
-        .parse(process.argv);
-
-    if (!cidrFile) {
-        program.outputHelp();
-        process.exit();
-    }
-
-    cidrList = fs.readFileSync(cidrFile).toString().split("\n");
-    if (!cidrList || !cidrList.length) {
-        console.log('error: %s does not contain any CIDR range', cidrFile);
-        process.exit();
-    }
-
-    verbose = program.verbose;
-    cidrList = cidrClean(cidrList);
-    logger = loggerConsole;
-}
-
-function initCache() {
-
-    cidrList.forEach(function (cidr, idx) {
-
-        cidr = cidr.replace(/[\r]/g, "");
-
-        if (cidr && !cidr.match(/^#/)) {
-
-            let block = new Netmask(cidr);
-            totalIPCount+=block.size-2; // we don't care of .0 and .255
-
-            cidrListClean.push(cidr);
-
-            tmpCidrFile = common.getCidrFile(cidr);
-
-            if (program.rebuildCache || !fs.pathExistsSync(tmpCidrFile)) {
-
-                logger.log(
-                    sprintf(
-                        '%-20s: preparing local cache %s',
-                        cidr,
-                        tmpCidrFile
-                    )
-                );
-
-
-                let cacheInfo = {
-                    first:ipInt(block.first).toInt(),
-                    current:0,
-                    last:ipInt(block.last).toInt()
-                };
-
-                cacheInfo.size = cacheInfo.last - cacheInfo.first +1;
-
-                fs.outputJsonSync(tmpCidrFile, cacheInfo);
-
-            }
+function cleanUp(arr) {
+    debug('cleanup');
+    const arrOut = [];
+    arr.forEach((item) => {
+        item = item.trim();
+        if (item && item[0]!='#') {
+            arrOut.push(item);
         }
     });
+    return arrOut;
+}
 
-    logger.log('Number of IPs to reverse: %s', totalIPCount);
+function initWorkersQueue() {
+    workersQueue = async.queue(workerFork, options.workersMax);
 
+    workersQueue.drain(() => {
+        showStats();
+        setTimeout(() => {
+            logger.log();
+            process.exit(0);
+        }, 500);
+    });
+
+    cidrListClean.forEach((cidr)=>{
+        workersQueue.push(cidr);
+    });
+}
+
+function initStats() {
+    setInterval(showStats, showWorkersStatsInterval);
+
+    if (!opts.progress) return;
+
+    console.log('-'.repeat(carretLength));
+
+    let i = options.workersMax;
+    while (i--) workersStatLine.push(console.draft());
+
+    console.log('-'.repeat(carretLength));
+
+    i = fqdnFoundKeepMax;
+    while (i--) fqdnStatLines.push(console.draft());
+
+    console.log('-'.repeat(carretLength));
+
+    masterStatLine = console.draft();
 }
 
 function initWorkersToMasterEvents() {
 
-    sockmq.on('workerReady',(ev, data) => {
-        let d;
-        try {
-            d = fs.readJsonSync(common.getCidrFile(data._emitter));
-        } catch(e) {
-            d = {};
+    debug('initWorkersToMasterEvents');
 
+    sockmq.on('workerReady', (ev, data) => {
+        const cidr = data._emitter;
+        debug('workerReady', cidr);
+        let cache;
+        try {
+            cache = fs.readJsonSync(common.getCidrFile(cidr));
+        } catch(e) {
+            cache = {};
         }
-        progress[data._emitter] = d;
+        progress[data._emitter] = cache;
         sockmq.send(data._emitter+':start', progress[data._emitter]);
     });
 
@@ -415,52 +402,86 @@ function initWorkersToMasterEvents() {
 
 }
 
-function initWorkersQueue() {
-    workersQueue = async.queue(workerFork, options.workersMax);
-
-    workersQueue.drain = function() {
-        showStats();
-        setTimeout(() => {
-            logger.log();
-            process.exit(0);
-        },500);
-    };
-
-    cidrListClean.forEach((cidr)=>{
-        workersQueue.push(cidr);
-    });
-}
-
 function initSpecialsDomainsMatch() {
-
     // precompile filtered domain names
-
     Object.keys(filteredDomains).forEach((prefix) => {
         filteredDomains[prefix].fqdnKeywords.forEach((fqdnKeyword) => {
             if (!filteredDomains[prefix].re) filteredDomains[prefix].re = [];
-            filteredDomains[prefix].re.push(new RegExp(fqdnKeyword,'i'));
-        })
+            filteredDomains[prefix].re.push(new RegExp(fqdnKeyword, 'i'));
+        });
     });
 }
 
-function initStats() {
-    setInterval(showStats, showWorkersStatsInterval);
+function initCache() {
 
-    if (!program.progress) return;
+    debug('initCache', cidrList);
 
-    console.log('-'.repeat(80));
+    cidrList.forEach((cidr/*, idx*/) =>  {
 
-    let i = options.workersMax;
-    while (i--) workersStatLine.push(console.draft());
+        const block = new Netmask(cidr);
+        totalIPCount+=block.size-2; // we don't care of .0 and .255
 
-    console.log('-'.repeat(80));
+        cidrListClean.push(cidr);
 
-    i = fqdnFoundKeepMax;
-    while (i--) fqdnStatLines.push(console.draft());
+        tmpCidrFile = common.getCidrFile(cidr);
 
-    console.log('-'.repeat(80));
+        if (opts.rebuildCache || !fs.pathExistsSync(tmpCidrFile)) {
 
-    masterStatLine = console.draft();
+            verbose && logger.log(
+                sprintf(
+                    '%-20s: preparing local cache %s',
+                    cidr,
+                    tmpCidrFile
+                )
+            );
+
+            const cacheInfo = {
+                first:ipInt(block.first).toInt(),
+                current:0,
+                last:ipInt(block.last).toInt()
+            };
+
+            cacheInfo.size = cacheInfo.last - cacheInfo.first +1;
+
+            fs.outputJsonSync(tmpCidrFile, cacheInfo);
+            debug('write', tmpCidrFile);
+        }
+    });
+
+    logger.log('Number of IPs to reverse: %s', totalIPCount);
+}
+
+function initProgram() {
+    program
+        .arguments('<cidrFile>')
+        .action((f) => {
+            cidrFile = f;
+        })
+        .option('-r, --rebuild-cache', 'Rebuild local cache')
+        .option('-p, --progress', 'Show progress')
+        .option('-v, --verbose', 'Verbose')
+        .option('-q, --quiet', 'Quiet')
+        .parse(process.argv);
+
+    opts = program.opts();
+    debug('initProgram', opts);
+
+    if (!cidrFile) {
+        program.outputHelp();
+        process.exit();
+    }
+
+    cidrList = fs.readFileSync(cidrFile).toString().split('\n');
+    cidrList = cleanUp(cidrList);
+    cidrList = cidrClean(cidrList);
+
+    if (!cidrList || !cidrList.length) {
+        console.log('error: %s does not contain any CIDR range', cidrFile);
+        process.exit();
+    }
+
+    verbose = opts.verbose;
+    logger = loggerConsole;
 }
 
 function init(opts) {
