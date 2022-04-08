@@ -15,7 +15,7 @@
     "draftlog": "1.0.12",
     "fs-extra": "9.1.0",
     "ip-to-int": "0.3.1",
-    "moment": "2.29.1",
+    "moment": "2.29.2",
     "moment-duration-format": "2.3.2",
     "netmask": "1.0.6",
     "sanic.js": "1.1.2",
